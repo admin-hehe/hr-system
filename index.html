@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+    <link href="https://fonts.cdnfonts.com/css/ms-sans-serif" rel="stylesheet">
+    
+    <style>
+        :root {
+            --win-gray: #c0c0c0;
+            --win-blue: #000080;
+            --win-light: #ffffff;
+            --win-dark: #868a8e;
+        }
+
+        /* BACKGROUND - Bliss Wallpaper */
+        html, body { margin: 0; padding: 0; height: 100%; width: 100%; }
+        body { 
+            font-family: 'MS Sans Serif', Tahoma, sans-serif;
+            background-color: #008080 !important; 
+            background-image: url('https://wallpaperaccess.com/full/3263231.jpg') !important;
+            background-repeat: no-repeat !important;
+            background-position: center center !important;
+            background-size: cover !important;
+            background-attachment: fixed !important;
+            display: flex; justify-content: center; align-items: flex-start; padding-top: 20px;
+        }
+
+        /* Windows 95 UI Styling */
+        .win95-border { box-shadow: inset 1px 1px var(--win-light), inset -1px -1px var(--win-dark), 1px 1px #000; }
+        .win95-input { box-shadow: inset 1px 1px var(--win-dark), inset -1px -1px var(--win-light); background: white; border: none; padding: 5px; outline: none; }
+        .win95-btn { box-shadow: inset 1px 1px var(--win-light), inset -1px -1px var(--win-dark), 1px 1px #000; background: var(--win-gray); border: none; cursor: pointer; }
+        .win95-btn:active { box-shadow: inset 1px 1px var(--win-dark), 1px 1px var(--win-light); }
+        .title-bar { background: linear-gradient(90deg, var(--win-blue), #1084d0); }
+
+        /* PROGRESS BAR ANIMATION (Sesuai Gambar User) */
+        .progress-container {
+            width: 100%;
+            height: 22px;
+            background: #ffffff;
+            box-shadow: inset 2px 2px var(--win-dark), inset -1px -1px var(--win-light);
+            padding: 2px;
+            display: flex;
+            gap: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-block-wrapper {
+            display: flex;
+            gap: 2px;
+            animation: progress-move 2s infinite linear;
+        }
+
+        .progress-block {
+            width: 10px;
+            height: 16px;
+            background-color: var(--win-blue);
+            flex-shrink: 0;
+        }
+
+        @keyframes progress-move {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .loading-shimmer {
+            background: linear-gradient(90deg, #ffffff 25%, #e0e0e0 50%, #ffffff 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite linear;
+        }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        #globalLoading { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="w-full max-w-md bg-[#c0c0c0] p-1 win95-border mb-10 z-10">
+        <div class="title-bar flex justify-between items-center p-1 px-2 mb-2">
+            <span class="text-white font-bold text-xs flex items-center uppercase">
+                <img src="https://win98icons.alexmeub.com/icons/png/envelope_closed-1.png" class="w-4 h-4 mr-2" onerror="this.style.display='none'"> 
+                LEAVE_REQUEST.EXE
+            </span>
+            <div class="flex gap-1">
+                <button class="win95-btn w-4 h-4 text-[10px] flex items-center justify-center font-bold">X</button>
+            </div>
+        </div>
+
+        <div class="p-4 space-y-4 text-xs">
+            <form id="leaveForm">
+                <div class="flex flex-col mb-3 relative">
+                    <label class="mb-1 font-bold">Nama Personil:</label>
+                    <input type="text" id="namaInput" name="nama" class="win95-input w-full loading-shimmer" placeholder="Menghubungkan ke database..." disabled autocomplete="off" oninput="handleSearch(this.value)">
+                    <div id="suggestionBox" class="absolute left-0 top-[45px] w-full bg-[#c0c0c0] win95-border hidden z-20 max-h-40 overflow-y-auto"></div>
+                </div>
+
+                <div class="flex flex-col mb-3">
+                    <label class="mb-1 font-bold">NIP:</label>
+                    <input type="text" id="nipInput" name="nip" readonly class="win95-input w-full bg-[#d4d0c8]">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div class="flex flex-col">
+                        <label class="mb-1 font-bold">Jenis:</label>
+                        <select name="jenis" id="jenisInput" class="win95-input" onchange="toggleLainnya()">
+                            <option value="Cuti">Cuti</option>
+                            <option value="Sakit">Sakit</option>
+                            <option value="Lainnya">Lainnya</option>
+                        </select>
+                    </div>
+                    <div id="lainnyaDiv" class="flex flex-col hidden">
+                        <label class="mb-1 font-bold">Detail:</label>
+                        <input type="text" name="detailJenis" class="win95-input">
+                    </div>
+                </div>
+
+                <div class="flex flex-col mb-3">
+                    <label class="mb-1 font-bold">Alasan / Keterangan:</label>
+                    <textarea name="alasan" class="win95-input h-16 resize-none"></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div class="flex flex-col">
+                        <label class="mb-1 font-bold">Tgl Mulai:</label>
+                        <input type="date" id="tglMulai" name="tglMulai" class="win95-input" onchange="calculateDays()">
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="mb-1 font-bold">Tgl Selesai:</label>
+                        <input type="date" id="tglSelesai" name="tglSelesai" class="win95-input" onchange="calculateDays()">
+                    </div>
+                </div>
+
+                <div class="flex flex-col mb-4">
+                    <label class="mb-1 font-bold">Jumlah Hari:</label>
+                    <input type="text" id="jmlHari" name="jmlHari" readonly class="win95-input w-full bg-[#d4d0c8]">
+                </div>
+
+                <div class="bg-[#eee] p-2 win95-border mb-4 text-[10px]">
+                    <label class="block mb-1 font-bold">Lampiran:</label>
+                    <input type="file" id="fileInput" class="w-full">
+                </div>
+
+                <button type="button" onclick="processSubmission()" class="win95-btn w-full py-2 font-bold text-sm uppercase">Kirim Data</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="globalLoading" class="fixed inset-0 bg-black/40 flex items-center justify-center z-[100]">
+        <div class="bg-[#c0c0c0] win95-border p-1 w-72">
+            <div class="title-bar text-white px-2 py-0.5 text-[10px] font-bold flex justify-between">
+                <span>Sending Data...</span>
+                <button class="win95-btn w-3 h-3 text-[8px] flex items-center justify-center">x</button>
+            </div>
+            <div class="p-4 bg-[#c0c0c0]">
+                <p class="mb-3 text-[11px]">Sedang mengirim data ke server...</p>
+                <div class="progress-container">
+                    <div class="progress-block-wrapper">
+                        <div class="progress-block"></div><div class="progress-block"></div>
+                        <div class="progress-block"></div><div class="progress-block"></div>
+                        <div class="progress-block"></div><div class="progress-block"></div>
+                        <div class="progress-block"></div><div class="progress-block"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 w-64 bg-[#c0c0c0] win95-border p-1 hidden z-[110]">
+        <div class="title-bar text-white px-2 py-1 text-[10px] font-bold">System Info</div>
+        <div class="p-4 text-center">
+            <p id="toastMsg" class="text-xs mb-4"></p>
+            <button onclick="closeToast()" class="win95-btn px-6 py-1 text-xs font-bold uppercase">OK</button>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz6VLBh6asFTLHJ0D4Wi5MoqTrVNgiiDoJRXvTOnJxhbXleNgLauFQgvO9E7QdlvXM/exec";
+        let employeeData = [];
+        let fuse;
+
+        window.onload = async () => {
+            try {
+                const response = await fetch(SCRIPT_URL);
+                employeeData = await response.json();
+                fuse = new Fuse(employeeData, { keys: ['nama'], threshold: 0.3 });
+                const input = document.getElementById('namaInput');
+                input.disabled = false;
+                input.placeholder = "Ketik Nama...";
+                input.classList.remove('loading-shimmer');
+            } catch (err) { console.error(err); }
+        };
+
+        function handleSearch(val) {
+            const box = document.getElementById('suggestionBox');
+            if (val.length < 2) { box.classList.add('hidden'); return; }
+            const results = fuse.search(val);
+            box.innerHTML = '';
+            if (results.length > 0) {
+                box.classList.remove('hidden');
+                results.forEach(res => {
+                    const div = document.createElement('div');
+                    div.className = 'p-2 hover:bg-[#000080] hover:text-white cursor-pointer border-b border-gray-300';
+                    div.innerText = res.item.nama;
+                    div.onclick = () => {
+                        document.getElementById('namaInput').value = res.item.nama;
+                        document.getElementById('nipInput').value = res.item.nip;
+                        box.classList.add('hidden');
+                    };
+                    box.appendChild(div);
+                });
+            } else { box.classList.add('hidden'); }
+        }
+
+        function toggleLainnya() {
+            const val = document.getElementById('jenisInput').value;
+            document.getElementById('lainnyaDiv').classList.toggle('hidden', val !== 'Lainnya');
+        }
+
+        function calculateDays() {
+            const start = new Date(document.getElementById('tglMulai').value);
+            const end = new Date(document.getElementById('tglSelesai').value);
+            if (start && end && end >= start) {
+                const diffTime = Math.abs(end - start);
+                document.getElementById('jmlHari').value = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            } else { document.getElementById('jmlHari').value = ""; }
+        }
+
+        async function processSubmission() {
+            const loader = document.getElementById('globalLoading');
+            const form = document.getElementById('leaveForm');
+            
+            if (!form.nama.value || !form.tglMulai.value) { showToast("Data belum lengkap!"); return; }
+            const start = new Date(form.tglMulai.value);
+            const end = new Date(form.tglSelesai.value);
+            if (end < start) { showToast("Tanggal selesai tidak valid!"); return; }
+
+            // FORCE RENDER LOADING
+            loader.style.setProperty('display', 'flex', 'important');
+
+            setTimeout(async () => {
+                try {
+                    const fileInput = document.getElementById('fileInput');
+                    let filePayload = { data: "", type: "", name: "" };
+                    
+                    if (fileInput.files.length > 0) {
+                        const file = fileInput.files[0];
+                        const reader = new FileReader();
+                        const base64Promise = new Promise(resolve => {
+                            reader.onload = () => resolve(reader.result);
+                            reader.readAsDataURL(file);
+                        });
+                        const base64Data = await base64Promise;
+                        filePayload = { data: base64Data, type: file.type, name: file.name };
+                    }
+
+                    const payload = {
+                        nip: form.nip.value,
+                        nama: form.nama.value,
+                        jenis: form.jenis.value,
+                        detailJenis: form.detailJenis ? form.detailJenis.value : "-",
+                        alasan: form.alasan.value,
+                        tglMulai: form.tglMulai.value,
+                        tglSelesai: form.tglSelesai.value,
+                        jmlHari: form.jmlHari.value,
+                        fileData: filePayload.data,
+                        fileType: filePayload.type,
+                        fileName: filePayload.name
+                    };
+
+                    const response = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+                    const res = await response.json();
+                    
+                    loader.style.setProperty('display', 'none', 'important');
+                    showToast(res.message);
+                    if(res.status === "success") form.reset();
+                } catch (err) {
+                    loader.style.setProperty('display', 'none', 'important');
+                    showToast("Error: " + err);
+                }
+            }, 100);
+        }
+
+        function showToast(msg) {
+            document.getElementById('toastMsg').innerText = msg;
+            document.getElementById('toast').classList.remove('hidden');
+        }
+
+        function closeToast() { document.getElementById('toast').classList.add('hidden'); }
+    </script>
+</body>
+</html>
